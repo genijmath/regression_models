@@ -1,0 +1,76 @@
+---
+title: "Regression models class project"
+author: "Yevgen Yampolskiy"
+date: "01/24/2015"
+output: html_document
+---
+
+## Result summary
+We observe significant difference in MPG for automatic and manual transmission. 
+Most likely reason is that manual transmission weights less, 
+and it is the weight impacts MPG.
+
+Suggested model for MPG is `mpg ~ wt + cyl*hp`.
+
+# Comparison of manual and automatic transmission for MPG
+Just by looking at the box plots of MPG by transmission type we see that 
+cars with manual transmission have higher MPG. T-test confirms that
+the difference in mean MPG is significant. However it is more natural
+to expect that weight will impact MPG a lot, and indeed we can see 
+very high correlation between MPG and weight, and not so high correlation
+between MPG and transimission type. If we plot MPG by weight and add 
+coloring based on transmission type then we can obseved that cars
+with manual transmission weight less which explains observed difference 
+in MPG by transmission type. 
+
+```{r}
+data(mtcars)
+boxplot(mpg ~ am, data = mtcars, xlab="Transmission type", ylab="MPG")
+t.test(subset(mtcars, am==0, select=mpg), subset(mtcars, select=mpg, am==1))
+
+# print correlations of MPG with transmission type and weight
+c(cor(mtcars$mpg, mtcars$am), cor(mtcars$mpg, mtcars$wt)) 
+
+#We can see that cars with manual transmission are more lightweight
+library(ggplot2)
+qplot(wt, mpg, data = mtcars, col = am)
+```
+
+# Choosing the model
+If we feed all available variables into the model and
+let `R` choose the best one using `step` function then resulting model
+will be model `mpg ~ wt + qsec + am`. What I do not like about 
+this model is that `qsec` is a derived variable from engine 
+characteristic and weight, and `am` is likely related to weight.
+Another issue is that using 3 variables on data set with 32 observations
+could result into overfitting. 
+
+If we try to model MPG using only two variables (one of them must be 
+weight) then by looking at the adjusted `R^2` values the most attractive
+models are `mpg ~ wt + cyl`, `mpg ~ wt + hp`, `mpg ~ wt + qsec`.
+I like `cyl` variable in the model as it is directly related
+to car physical characteristic. There is a high correlation between
+`cyl` and `hp`. Adding interactions between
+`cyl` and `hp` resulted into the model with the smallest `R^2`:
+`mpg ~ wt + cyl * hp`.
+
+Residual plot does not show anything bad about this model. Note
+that if we compare `mpg ~ wt + qsec + am` and `mpg ~ wt + cyl * hp`
+models than we reduced both residual error and number of degrees
+of freedom. 
+
+Here is supporting `R` code:
+```{r}
+data(mtcars)
+lm1 <- lm(mpg ~ ., data = mtcars)
+# Let R pick a model
+step(lm1)
+# Model choosen: mpg ~ wt + qsec + am
+summary(lm(formula = mpg ~ wt + qsec + am, data = mtcars))
+# Suggested model
+model <- lm(formula = mpg ~ wt + cyl * hp, data = mtcars)
+summary(model)
+plot(resid(model))
+abline(a=0, b=0)
+```
+
